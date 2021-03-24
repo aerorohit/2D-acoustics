@@ -29,7 +29,7 @@ def in_U_s(m, n, dx, x0, y0):
     x = np.arange(n)*dx+x0
     y = np.arange(m)*dx+y0
 
-    y = y[::-1]
+    # y = y[::-1]
     x, y = np.meshgrid(x,y)
     #constants for initialization
     # eps_a = 0.01
@@ -47,7 +47,7 @@ def in_U_s(m, n, dx, x0, y0):
 
     # Tam's problem
     eps_a = 0.01
-    eps_e = 0.004
+    eps_e = 0.001
     eps_v = 0.0004
     alp_a = np.log10(2)/9.0
     alp_e = np.log10(2)/25
@@ -116,10 +116,9 @@ def update_E_from_U(U_mat, E_mat, Mx):
     return 0
 
 def update_F_from_U(U_mat, F_mat):
-    u_s =U_mat[1]
     v_s = U_mat[2]
     p_s = U_mat[3]
-    F_mat[0] = u_s
+    F_mat[0] = v_s
     F_mat[2] = p_s
     F_mat[3] = v_s
     return 0
@@ -271,7 +270,7 @@ if __name__ =="__main__":
     #############################################################################
 
     n =200
-    TF = 0.0569*1500
+    TF =  0.0569*1000
     K_hst = np.zeros((4,4,n,n))
     U_mat, E_mat, F_mat, x, y = in_U_s(n, n, 1, -n//2, -n//2)
 
@@ -299,7 +298,7 @@ if __name__ =="__main__":
     plt.figure()
     plt.contour(U_mat[val])
     plt.colorbar()
-    denoise(Uf[val])
+    # denoise(Uf[val])
     plt.figure()
     plt.contour(Uf[val])
     plt.colorbar()
