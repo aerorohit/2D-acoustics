@@ -3,6 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.sparse import diags, vstack, csr_matrix, hstack
+from matplotlib import colors
 
 def in_U_s(m, n, dx, x0, y0, Mx):
     """" Function to return initial condition for the given problem"""
@@ -183,28 +184,68 @@ def get_K(U_mat, D, ghost_len, V_mat, s_mat, c_mat, r_mat, Mx):
     return K
 
 
-def simulate(U_mat, K_hist, D, ste_t, TF, dt, ghost_len, V_mat, s_mat, c_mat, r_mat, Mx):
-    t = 0
-    while t<TF:
+def simulate(U_mat, K_hist, D, ste_t, TF, dt,
+             ghost_len, V_mat, s_mat, c_mat, r_mat, Mx, plt_times):
+    ti = 0
+    U_hist = np.zeros((len(plt_times), *U_mat.shape))
+    plt_n = 0
+
+    for ti in range(plt_times[-1]+1):
+
+        if ti == plt_times[plt_n]:
+            U_hist[plt_n]= U_mat
+            plt_n +=1
 
         K_hist[1:,:] = K_hist[0:-1,:]
         K_curr = get_K(U_mat, D, ghost_len, V_mat, s_mat, c_mat, r_mat, Mx)
         K_hist[0] = K_curr
         U_mat += dt* np.tensordot(ste_t, K_hist, 1)
 
-        t+=dt
-    return U_mat
 
-# Hardcoded function for this part to get good contoures
+    return U_hist
+
+
+# Hardcoded function to get good contoures
 def denoise(mat):
-    b = np.abs(mat)<0.00001
+    b = np.abs(mat)<0.000001
     mat[b] = 0
 
-#############################################
-# defining stencils for spatial derivatives #
-#############################################
-s_tim = np.array([-0.02084314277031176, 0.166705904414580469, -0.77088238051822552, 0,\
-        0.77088238051822552, -0.166705904414580469, 0.02084314277031176])
+def plot_progress(var, U_hist, plt_times, dt, x, y):
+    from matplotlib import rc
+    var_names = [r'$\rho^*$', r'$u^*$', r'$v^*$', r'$p^*$', r'$speed^*$']
+    n_plt = len(U_hist)
+    n_row = (len(U_hist)+1)//2
+    fig, ax = plt.subplots(n_row,2, sharex = True, sharey=True,
+                           figsize = (10,5*n_row))#,
+                           # subplot_kw=dict(box_aspect=1, xlim = (-100, 100),
+                           #                 ylim=(-100,100)))
+
+    fig.suptitle(r'Variation of '+var_names[var] + r' wrt $t^*$')
+    n_curr = 0
+    # denoise(U_hist)
+    for i in range(n_row):
+        for j in range(2):
+            im = ax[i,j].imshow(U_hist[n_curr][var], extent=[-100,100,-100, 100], origin='lower')
+            # ax[i,j].contour(x,y, U_hist[n_curr][var], levels=0)
+            ax[i,j].set_title(r'$t^* = $'+ str(dt*plt_times[n_curr]))
+            fig.colorbar(im, ax=ax[i,j])
+            n_curr +=1
+            if n_curr>= n_plt:
+                break
+
+
+    plt.show()
+
+
+
+
+
+######################################################
+# defining stencils for spatial and time derivatives #
+######################################################
+s_tim = np.array([-0.02084314277031176, 0.166705904414580469,
+                  -0.77088238051822552, 0, 0.77088238051822552,
+                  -0.166705904414580469, 0.02084314277031176])
 s60 = np.array([-2.19228033900, 4.74861140100,-5.10885191500, 4.46156710400,
                 -2.83349874100, 1.12832886100, -0.20387637100 ])
 s51 = np.array([-0.20933762200, -1.08487567600, 2.14777605000, -1.38892832200,
@@ -221,8 +262,9 @@ ste_t = [2.3025580888383, -2.4910075998482, 1.5743409331815, -0.3858914221716]
 if __name__ =="__main__":
     import time
     n =200
-    dts = 0.0569
-    TF =  dts*2000
+    dts = 0.1
+    plt_times = np.array([0, 100, 500, 1000])
+    TF = plt_times[-1]
     Mx = 0.5
     gh_len = 3
     D = get_D(n, s_tim, s_back, 7)
@@ -233,23 +275,11 @@ if __name__ =="__main__":
     V, s, c , r= get_Vtheta(x, y, 0.5)
 
     atime = time.time()
-    Uf = simulate(U_mat.copy(), K_hst, D, ste_t, TF, dts, gh_len, V, s, c, r, Mx)
+    Uf = simulate(U_mat.copy(), K_hst, D, ste_t, TF, dts, gh_len, V, s, c, r, Mx, plt_times)
     btime = time.time()
     print("time required: ", btime-atime)
 
-    plt.figure()
-    plt.title("initial condition for rho*")
-    plt.contourf(x, y, U_mat[0])
-    plt.colorbar()
-    denoise(Uf[0])
-    plt.figure()
-    plt.title("rho* at t* = "+ str(TF))
-    plt.contourf(x, y, Uf[0])
-    plt.colorbar()
-
-    plt.figure()
-    plt.title("non dimensional speed at t* = "+str(TF))
-    plt.contourf(x, y, np.sqrt(Uf[1]**2+Uf[2]**2))
-    plt.colorbar()
-
-    plt.show()
+    plot_progress(0, Uf, plt_times, dts, x, y)    # density              #
+    plot_progress(1, Uf, plt_times, dts, x, y)    # u velocity component #
+    plot_progress(2, Uf, plt_times, dts, x, y)    # v velocity component #
+    plot_progress(3, Uf, plt_times, dts, x, y)    # pressure             #
